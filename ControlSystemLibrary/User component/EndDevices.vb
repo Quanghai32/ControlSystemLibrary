@@ -43,7 +43,8 @@ Public Class EndDevices
         If MAX_DEVICES > 0 Then
             Parts = New CPart(MAX_DEVICES - 1) {}
             For i = 0 To MAX_DEVICES - 1
-                Parts(i) = New CPart
+				Parts(i) = New CPart
+				Parts(i).parent = Me
             Next
         End If
         timerDisconnect = New Timer()
@@ -69,7 +70,8 @@ Public Class EndDevices
             If data(i) = 0 Then 'Sensor detect
                 Parts(i).EmptyCounter = 0
                 If Parts(i).TIME_FULL = 0 Then   'If confirm timer is disable
-                    Parts(i).Status = True
+					Parts(i).Status = True
+					Parts(i).AGVSupply = ""
                     Continue For
                 End If
                 If Parts(i).Status = True Then 'If preview status is full - Only update status again
@@ -102,7 +104,10 @@ Public Class EndDevices
                         End If
                     End If
                 End If
-            End If
+			End If
+			If Parts(i).Status = True Then
+				Parts(i).AGVSupply = ""
+			End If
         Next
     End Sub
     Sub timerDisconnect_Tick(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles timerDisconnect.Elapsed
@@ -135,7 +140,9 @@ Public Class CPart
     Property TIME_EMPTY As Integer = 0
     Friend EmptyCounter As Integer = 0
     Friend FullCounter As Integer = 0
-
+	Public parent As EndDevices
+	Public isRequested As Boolean = False
+	Public EmptyTime As DateTime = New DateTime()
     Property Enable As Boolean
         Get
             Return _Enable

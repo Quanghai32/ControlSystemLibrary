@@ -26,7 +26,7 @@ Public Class AGV
         BATTERY_EMPTY = 5
         NO_CART = 6
         NORMAL = 7
-    End Enum
+	End Enum
     Private _RobocarWorkingStatusName As String() = New String(2) {"Free", "Supplying", "Returning"}
     ReadOnly Property RobocarWorkingStatusName As String()
         Get
@@ -53,8 +53,8 @@ Public Class AGV
     Private _Battery As Byte() = New Byte(3) {0, 0, 0, 0}
     Private _SupplyPartStatus As Byte = 0
     Private _Connecting As Boolean = False
-    Private _Status As Byte
-    Private _WorkingStatus As Byte = RobocarWorkingStatusValue.SUPPLYING
+	Private _Status As RobocarStatusValue
+	Private _WorkingStatus As RobocarWorkingStatusValue = RobocarWorkingStatusValue.SUPPLYING
     Private _Position As Byte
     ''' <summary>
     ''' Get or set using status of AGV
@@ -129,24 +129,24 @@ Public Class AGV
             RaiseEvent PropertyChanged(Me, New System.ComponentModel.PropertyChangedEventArgs("Connecting"))
         End Set
     End Property
-    Property Status As Byte
-        Get
-            Return _Status
-        End Get
-        Set(ByVal value As Byte)
-            _Status = value
-            RaiseEvent PropertyChanged(Me, New System.ComponentModel.PropertyChangedEventArgs("Status"))
-        End Set
-    End Property
-    Property WorkingStatus As Byte
-        Get
-            Return _WorkingStatus
-        End Get
-        Set(ByVal value As Byte)
-            _WorkingStatus = value
-            RaiseEvent PropertyChanged(Me, New System.ComponentModel.PropertyChangedEventArgs("WorkingStatus"))
-        End Set
-    End Property
+	Property Status As RobocarStatusValue
+		Get
+			Return _Status
+		End Get
+		Set(ByVal value As RobocarStatusValue)
+			_Status = value
+			RaiseEvent PropertyChanged(Me, New System.ComponentModel.PropertyChangedEventArgs("Status"))
+		End Set
+	End Property
+	Property WorkingStatus As RobocarWorkingStatusValue
+		Get
+			Return _WorkingStatus
+		End Get
+		Set(ByVal value As RobocarWorkingStatusValue)
+			_WorkingStatus = value
+			RaiseEvent PropertyChanged(Me, New System.ComponentModel.PropertyChangedEventArgs("WorkingStatus"))
+		End Set
+	End Property
     Property Position As Byte
         Get
             Return _Position
