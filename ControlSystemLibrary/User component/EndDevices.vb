@@ -71,39 +71,45 @@ Public Class EndDevices
                 Parts(i).EmptyCounter = 0
                 If Parts(i).TIME_FULL = 0 Then   'If confirm timer is disable
 					Parts(i).Status = True
-					Parts(i).AGVSupply = ""
+					Parts(i).AGVSupply = ""		'Reset AGV supply
                     Continue For
                 End If
                 If Parts(i).Status = True Then 'If preview status is full - Only update status again
-                    Parts(i).Status = True
+					Parts(i).Status = True
+					Parts(i).AGVSupply = ""
                 Else    'If preview status is empty
                     If Parts(i).FullCounter = 0 Then 'if timer not set - it mean this's the first time sensor detect full
                         Parts(i).FullCounter = Environment.TickCount
                     Else
                         If Environment.TickCount > (Parts(i).FullCounter + Parts(i).TIME_FULL) Then
-                            Parts(i).Status = True
+							Parts(i).Status = True
+							Parts(i).AGVSupply = ""
                             Parts(i).FullCounter = 0
                         End If
                     End If
                 End If
-            Else
-                Parts(i).FullCounter = 0
-                If Parts(i).TIME_EMPTY = 0 Then
-                    Parts(i).Status = False
-                    Continue For
-                End If
-                If Parts(i).Status = False Then
-                    Parts(i).Status = False
-                Else
-                    If Parts(i).EmptyCounter = 0 Then
-                        Parts(i).EmptyCounter = Environment.TickCount
-                    Else
-                        If Environment.TickCount > (Parts(i).EmptyCounter + Parts(i).TIME_EMPTY) Then
-                            Parts(i).Status = False
-                            Parts(i).EmptyCounter = 0
-                        End If
-                    End If
-                End If
+			Else	'Sensor not detect - Part Empty
+				Parts(i).FullCounter = 0
+				If Parts(i).TIME_EMPTY = 0 Then
+					If Parts(i).Status = True Then 'If part change from Full to Empty --> Save empty time
+						Parts(i).EmptyTime = Now
+					End If
+					Parts(i).Status = False
+					Continue For
+				End If
+				If Parts(i).Status = False Then
+					Parts(i).Status = False
+				Else
+					If Parts(i).EmptyCounter = 0 Then
+						Parts(i).EmptyCounter = Environment.TickCount
+					Else
+						If Environment.TickCount > (Parts(i).EmptyCounter + Parts(i).TIME_EMPTY) Then
+							Parts(i).EmptyTime = Now
+							Parts(i).Status = False
+							Parts(i).EmptyCounter = 0
+						End If
+					End If
+				End If
 			End If
 			If Parts(i).Status = True Then
 				Parts(i).AGVSupply = ""
@@ -132,7 +138,7 @@ Public Class CPart
     Implements System.ComponentModel.INotifyPropertyChanged
     Private _Enable As Boolean
     Private _Name As String
-    Private _Status As Boolean
+	Private _Status As Boolean = False
     Private _index As Byte
     Private _priority As Byte
     Private _group As Byte
@@ -142,7 +148,7 @@ Public Class CPart
     Friend FullCounter As Integer = 0
 	Public parent As EndDevices
 	Public isRequested As Boolean = False
-	Public EmptyTime As DateTime = New DateTime()
+	Public EmptyTime As DateTime = Now
     Property Enable As Boolean
         Get
             Return _Enable
