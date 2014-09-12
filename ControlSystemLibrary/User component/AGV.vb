@@ -224,7 +224,7 @@ Public Class AGV
 	End Sub
 	Private Sub timerFree_Elapsed(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles timerFree.Elapsed
 		BeingStartPoint = False
-		WorkingStatus = RobocarWorkingStatusValue.FREE
+        If Status = RobocarStatusValue.STOP_BY_CARD Then WorkingStatus = RobocarWorkingStatusValue.FREE
 		timerFree.Stop()
 	End Sub
 	''' <summary>

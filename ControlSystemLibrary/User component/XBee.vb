@@ -171,21 +171,26 @@ Public Class XBee
 		transmitData(len + 3) = &HFF - sumArray(0)
 	End Sub
 
-	Private Sub SendData(ByVal Dest As UInt32, ByVal data() As Byte, ByVal len As Byte)
-		Dim i As Byte
-		Dim DestByte As Byte
-		'Set length
-		transmitData(2) = 14 + len
-		For i = 0 To 3
-			DestByte = (Dest >> (24 - i * 8)) And &HFF
-			transmitData(9 + i) = DestByte
-		Next
-		For i = 0 To len - 1
-			transmitData(17 + i) = data(i)
-		Next
-		setChecksumByte()
-		port.Write(transmitData, 0, 26)
-	End Sub
+    Private Sub SendData(ByVal Dest As UInt32, ByVal data() As Byte, ByVal len As Byte)
+        If IsNothing(port) Then
+            Return
+        ElseIf Not port.IsOpen Then
+            Return
+        End If
+        Dim i As Byte
+        Dim DestByte As Byte
+        'Set length
+        transmitData(2) = 14 + len
+        For i = 0 To 3
+            DestByte = (Dest >> (24 - i * 8)) And &HFF
+            transmitData(9 + i) = DestByte
+        Next
+        For i = 0 To len - 1
+            transmitData(17 + i) = data(i)
+        Next
+        setChecksumByte()
+        port.Write(transmitData, 0, 26)
+    End Sub
 	Private Sub Port_DataReceived(ByVal sender As System.Object, ByVal e As System.IO.Ports.SerialDataReceivedEventArgs)
 		Dim DataReceive As Byte
 		Dim i As Integer
