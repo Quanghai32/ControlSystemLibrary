@@ -417,10 +417,10 @@ Public Class XBee
 							Dim ob As XbeeDevices
 							receiveData = getd()
 							For Each ob In ChildComponent
-								If ob.getAddress = receiveData.ID Then
-									ob.analizeInput(receiveData.ID, receiveData.data)
-									Exit For
-								End If
+                                If ob.getAddress = receiveData.ID Then
+                                    ob.analizeInput(receiveData.ID, receiveData.data, receiveData.len)
+                                    Exit For
+                                End If
 							Next
 						End While
 					End If
@@ -469,6 +469,6 @@ Public Class XBee
 End Class
 
 Public Interface XbeeDevices
-    Sub analizeInput(ByVal ID As UInt32, ByVal data() As Byte)
+    Sub analizeInput(ByVal ID As UInt32, ByVal data() As Byte, ByVal len As Byte)
     Function getAddress() As UInt32
 End Interface

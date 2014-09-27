@@ -190,31 +190,36 @@ Public Class AGV
 		timerDisconnect.Stop()
 	End Sub
 
-	Friend Sub analizeInput(ByVal ID As UInt32, ByVal data() As Byte) Implements XbeeDevices.analizeInput
-		If ID <> Address Then Return
-		Connecting = True
-		timerDisconnect.Stop()
-		timerDisconnect.Start()
-		Status = data(0)
-		Position = data(2)
-		If WorkingStatus <> RobocarWorkingStatusValue.FREE Then
-			If Status = RobocarStatusValue.STOP_BY_CARD Then
-				If Not BeingStartPoint Then
-					If isInStartPoint() Then
-						BeingStartPoint = True
-						timerFree.Start()
-					Else
-						timerFree.Stop()
-					End If
-				End If
-			End If
-		End If
-		SupplyPartStatus = data(3)
-		Dim i As Byte
-		For i = 0 To 3
-			Battery(i) = data(4 + i)
-		Next
-	End Sub
+    Friend Sub analizeInput(ByVal ID As UInt32, ByVal data() As Byte, ByVal len As Byte) Implements XbeeDevices.analizeInput
+        If ID <> Address Then Return
+        If len <> 8 Then Return 'Standard about length of data is 3
+        Connecting = True
+        timerDisconnect.Stop()
+        timerDisconnect.Start()
+        Status = data(0)
+        Position = data(2)
+        If WorkingStatus <> RobocarWorkingStatusValue.FREE Then
+            If Status = RobocarStatusValue.STOP_BY_CARD Then
+                If Not BeingStartPoint Then
+                    If isInStartPoint() Then
+                        BeingStartPoint = True
+                        timerFree.Start()
+                    Else
+                        timerFree.Stop()
+                    End If
+                End If
+            End If
+        ElseIf Status <> RobocarStatusValue.STOP_BY_CARD Then
+            BeingStartPoint = False
+            timerFree.Stop()
+            WorkingStatus = RobocarWorkingStatusValue.SUPPLYING
+        End If
+        SupplyPartStatus = data(3)
+        Dim i As Byte
+        For i = 0 To 3
+            Battery(i) = data(4 + i)
+        Next
+    End Sub
 	Friend Function getAdress() As UInt32 Implements XbeeDevices.getAddress
 		Return Address
 	End Function
@@ -236,7 +241,7 @@ Public Class AGV
 		data.ID = Address
 		data.data(0) = &H57	'Write command - 'W'
 		data.data(1) = &H52	'Run command - 'R'
-		data.data(2) = Route 'Don't change route
+        data.data(2) = Route
 		data.len = 3
 		myXbee.putd(data)
 	End Sub
@@ -283,5 +288,18 @@ Public Class AGV
 			End If
 		Next
 		Return False
-	End Function
+    End Function
+    Public Function BatteryPercent() As Byte
+        Dim value As Byte = Battery(0)
+        For i As Byte = 0 To 3
+            If value > Battery(i) Then value = Battery(i)
+        Next
+        Dim rt As Single = (value - 110) / 20 * 100
+        If rt < 0 Then
+            rt = 0
+        ElseIf rt > 100 Then
+            rt = 100
+        End If
+        Return Byte.Parse(rt)
+    End Function
 End Class
