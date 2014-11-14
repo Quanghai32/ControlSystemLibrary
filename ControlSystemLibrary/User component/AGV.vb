@@ -55,7 +55,7 @@ Public Class AGV
 	Private _Connecting As Boolean = False
 	Private _Status As RobocarStatusValue
 	Private _WorkingStatus As RobocarWorkingStatusValue = RobocarWorkingStatusValue.SUPPLYING
-	Private _Position As Byte
+    Private _Position As Integer
 	''' <summary>
 	''' Get or set using status of AGV
 	''' </summary>
@@ -147,15 +147,15 @@ Public Class AGV
 			RaiseEvent PropertyChanged(Me, New System.ComponentModel.PropertyChangedEventArgs("WorkingStatus"))
 		End Set
 	End Property
-	Property Position As Byte
-		Get
-			Return _Position
-		End Get
-		Set(ByVal value As Byte)
-			_Position = value
-			RaiseEvent PropertyChanged(Me, New System.ComponentModel.PropertyChangedEventArgs("Position"))
-		End Set
-	End Property
+    Property Position As Integer
+        Get
+            Return _Position
+        End Get
+        Set(ByVal value As Integer)
+            _Position = value
+            RaiseEvent PropertyChanged(Me, New System.ComponentModel.PropertyChangedEventArgs("Position"))
+        End Set
+    End Property
 	''' <summary>
 	''' Create and return new AGV object, using the specified name
 	''' </summary>
@@ -180,7 +180,7 @@ Public Class AGV
 		timerDisconnect.Interval = TIMEOUT
 		startTimer()
 		timerFree = New Timer()
-		timerFree.Interval = TIMEOUT
+        timerFree.Interval = TIME_FREE
 	End Sub
 
 	Private Sub startTimer()
@@ -192,12 +192,13 @@ Public Class AGV
 
     Friend Sub analizeInput(ByVal ID As UInt32, ByVal data() As Byte, ByVal len As Byte) Implements XbeeDevices.analizeInput
         If ID <> Address Then Return
-        If len <> 8 Then Return 'Standard about length of data is 3
+        If len <> 8 Then Return 'Standard about length of data is 8
+        '"7-Battery 4 | 6-Battery 3 | 5-Battery 2 | 4-Battery 1 | 3-SupplyPartStatus | 2-Position 0 | 1-Position 1 | 0-Status"
         Connecting = True
         timerDisconnect.Stop()
         timerDisconnect.Start()
         Status = data(0)
-        Position = data(2)
+        Position = (CType(data(1), Integer) << 8) + data(2)
         If WorkingStatus <> RobocarWorkingStatusValue.FREE Then
             If Status = RobocarStatusValue.STOP_BY_CARD Then
                 If Not BeingStartPoint Then

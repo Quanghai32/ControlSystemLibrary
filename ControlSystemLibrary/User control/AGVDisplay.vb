@@ -37,7 +37,7 @@ Public Class AGVDisplay
     Private batteryValue As Byte() = New Byte(3) {}
     Private SupplyPartStatusValue As Byte
     Private WorkingStatusValue As Byte
-    Private PositionValue As Byte
+    Private PositionValue As Integer
     Private RunningStatusValue As Byte
     Private ConnectingValue As Boolean
 
@@ -81,8 +81,8 @@ Public Class AGVDisplay
             Return WorkingStatusValue
         End Get
     End Property
-    Property Position As Byte
-        Set(ByVal value As Byte)
+    Property Position As Integer
+        Set(ByVal value As Integer)
             SetPosition(value)
         End Set
         Get
@@ -118,7 +118,7 @@ Public Class AGVDisplay
     Private Delegate Sub SetBatteryCallback(ByVal value As Byte())
     Private Delegate Sub SetSupplyPartStatusCallBack(ByVal value As Byte)
     Private Delegate Sub SetWorkingStatusCallback(ByVal value As Byte)
-    Private Delegate Sub SetPositionCallback(ByVal value As Byte)
+    Private Delegate Sub SetPositionCallback(ByVal value As Integer)
     Private Delegate Sub SetRunningStatusCallback(ByVal value As Byte)
     Private Delegate Sub SetConnectingCallback(ByVal value As Boolean)
 
@@ -190,7 +190,7 @@ Public Class AGVDisplay
             WorkingStatusValue = value
         End If
     End Sub
-    Private Sub SetPosition(ByVal value As Byte)
+    Private Sub SetPosition(ByVal value As Integer)
         If Me.InvokeRequired Then
             Dim d As New SetPositionCallback(AddressOf SetPosition)
             Me.Invoke(d, New Object() {value})

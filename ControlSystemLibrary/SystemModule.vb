@@ -1,5 +1,5 @@
 ﻿Public Module SystemModule
-    Property StartPoint As Byte() = New Byte(1) {10, 20}
+    Property StartPoint As Integer() = New Integer(1) {10, 20}
     ''' <summary>
     ''' Link AGV or End Devices and Xbee together
     ''' </summary>
