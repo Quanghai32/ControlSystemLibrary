@@ -42,12 +42,12 @@ Public Class AGV
 
 	Property Address As UInt32
 	Property PID As Byte
-	Property TIMEOUT As Integer = 2000
+    Property TIMEOUT As Integer = 4000
 	Property TIME_FREE As Integer = 5000
 	Private WithEvents timerDisconnect As Timer
 	Private WithEvents timerFree As Timer
 	Private BeingStartPoint As Boolean = False
-
+    Private _group As Byte
 	Private _Enable As Boolean
 	Private _Name As String = "AGV"
 	Private _Battery As Byte() = New Byte(3) {0, 0, 0, 0}
@@ -83,7 +83,16 @@ Public Class AGV
 			_Name = value
 			RaiseEvent PropertyChanged(Me, New System.ComponentModel.PropertyChangedEventArgs("Name"))
 		End Set
-	End Property
+    End Property
+
+    Property group As Byte
+        Get
+            Return _group
+        End Get
+        Set(value As Byte)
+            _group = value
+        End Set
+    End Property
 	''' <summary>
 	''' Set or get array of battery value
 	''' </summary>

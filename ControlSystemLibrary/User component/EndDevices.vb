@@ -6,7 +6,7 @@ Public Class EndDevices
     Property PID As Byte
     Protected Property MAX_DEVICES As Byte
 
-    Property TIMEOUT As Integer = 2000
+    Property TIMEOUT As Integer = 4000
 
     Private _connecting As Boolean
     Public Parts() As CPart
@@ -148,8 +148,8 @@ Public Class CPart
     Private _group As Byte
     Private _target As Integer = 0
     Private _supplyCount As Integer = 0
-    Property TIME_FULL As Integer = 0
-    Property TIME_EMPTY As Integer = 0
+    Property TIME_FULL As Integer = 10000
+    Property TIME_EMPTY As Integer = 10000
     Friend EmptyCounter As Integer = 0
     Friend FullCounter As Integer = 0
 	Public parent As EndDevices
@@ -235,6 +235,7 @@ Public Class CPart
     End Property
     Public Property connecting() As Boolean
         Get
+            If IsNothing(parent) Then Return True
             Return parent.connecting
         End Get
         Set(value As Boolean)

@@ -193,36 +193,39 @@ Public Class XBee
     End Sub
 	Private Sub Port_DataReceived(ByVal sender As System.Object, ByVal e As System.IO.Ports.SerialDataReceivedEventArgs)
 		Dim DataReceive As Byte
-		Dim i As Integer
-		For i = 0 To port.BytesToRead - 1
-			DataReceive = port.ReadByte()
-			If (DataReceive = &H7E) And (ReceiveStep = 0) Then
-				ReceiveStep = 1
-				Exit Sub
-			End If
-			Select Case ReceiveStep
-				Case 1
-					ReceiveLenArray(1) = DataReceive
-					ReceiveStep += 1
-				Case 2
-					ReceiveLenArray(0) = DataReceive
-					ReceiveLen = BitConverter.ToInt16(ReceiveLenArray, 0)
-					ReceiveCount = 0
-					ReceiveStep += 1
-				Case 3
-					Receive(ReceiveCount) = DataReceive
-					ReceiveCount += 1
-					If ReceiveCount >= ReceiveLen Then
-						ReceiveStep += 1
-					End If
-				Case 4
-					ReceiveCheck = DataReceive
-					If ReceiveCheckSum() Then
-						analizeInformationReceived()
-					End If
-					ReceiveStep = 0
-			End Select
-		Next
+        Dim i As Integer
+        If port.IsOpen = False Then
+            Return
+        End If
+        For i = 0 To port.BytesToRead - 1
+            DataReceive = port.ReadByte()
+            If (DataReceive = &H7E) And (ReceiveStep = 0) Then
+                ReceiveStep = 1
+                Exit Sub
+            End If
+            Select Case ReceiveStep
+                Case 1
+                    ReceiveLenArray(1) = DataReceive
+                    ReceiveStep += 1
+                Case 2
+                    ReceiveLenArray(0) = DataReceive
+                    ReceiveLen = BitConverter.ToInt16(ReceiveLenArray, 0)
+                    ReceiveCount = 0
+                    ReceiveStep += 1
+                Case 3
+                    Receive(ReceiveCount) = DataReceive
+                    ReceiveCount += 1
+                    If ReceiveCount >= ReceiveLen Then
+                        ReceiveStep += 1
+                    End If
+                Case 4
+                    ReceiveCheck = DataReceive
+                    If ReceiveCheckSum() Then
+                        analizeInformationReceived()
+                    End If
+                    ReceiveStep = 0
+            End Select
+        Next
 	End Sub
 	Private Function ReceiveCheckSum() As Boolean
 		Dim i As Byte
@@ -320,7 +323,7 @@ Public Class XBee
 	''' <remarks></remarks>
 	Public Sub SettingPort(ByVal name As String, ByVal BaudRate As Integer)
 		If IsNothing(port) Then port = New SerialPort()
-		If port.IsOpen Then port.Close()
+        If port.IsOpen Then port.Close()
 		Try
 			port.PortName = name
 			port.BaudRate = BaudRate
