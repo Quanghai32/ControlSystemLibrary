@@ -74,6 +74,9 @@ Public Class EndDevices
             If data(i) = 0 Then 'Sensor detect
                 Parts(i).EmptyCounter = 0
                 If Parts(i).TIME_FULL = 0 Then   'If confirm timer is disable
+                    If Parts(i).Status = False Then 'If part change from Full to Empty --> Save empty time
+                        Parts(i).FullTime = Now
+                    End If
                     Parts(i).Status = True
                     Parts(i).AGVSupply = ""     'Reset AGV supply
                     Continue For
@@ -86,6 +89,7 @@ Public Class EndDevices
                         Parts(i).FullCounter = Environment.TickCount
                     Else
                         If Environment.TickCount > (Parts(i).FullCounter + Parts(i).TIME_FULL) Then
+                            Parts(i).FullTime = Now
                             Parts(i).Status = True
                             Parts(i).AGVSupply = ""
                             Parts(i).FullCounter = 0
@@ -154,7 +158,9 @@ Public Class CPart
     Friend FullCounter As Integer = 0
 	Public parent As EndDevices
 	Public isRequested As Boolean = False
-	Public EmptyTime As DateTime = Now
+    Public EmptyTime As DateTime = Now
+    Public FullTime As DateTime = Now
+    Public SupplyTime As DateTime = Now
     Property Enable As Boolean
         Get
             Return _Enable

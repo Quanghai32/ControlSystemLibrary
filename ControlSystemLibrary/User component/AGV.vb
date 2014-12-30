@@ -42,8 +42,7 @@ Public Class AGV
 
 	Property Address As UInt32
 	Property PID As Byte
-    Property TIMEOUT As Integer = 4000
-	Property TIME_FREE As Integer = 5000
+
 	Private WithEvents timerDisconnect As Timer
 	Private WithEvents timerFree As Timer
 	Private BeingStartPoint As Boolean = False
@@ -56,8 +55,10 @@ Public Class AGV
 	Private _Status As RobocarStatusValue
 	Private _WorkingStatus As RobocarWorkingStatusValue = RobocarWorkingStatusValue.SUPPLYING
     Private _Position As Integer
+    Private _TIMEOUT As Integer = 4000
+    Private _TIME_FREE As Integer = 5000
 	''' <summary>
-	''' Get or set using status of AGV
+    ''' ***Get or set using status of AGV***
 	''' </summary>
 	''' <value>If the value is true, it mean AGV was used, if it's false, it mean AGV was not used</value>
 	''' <returns>Return using state of AGV</returns>
@@ -71,7 +72,7 @@ Public Class AGV
 		End Set
 	End Property
 	''' <summary>
-	''' Get or set name of AGV
+    ''' ***Get or set name of AGV***
 	''' </summary>
 	''' <value>Set new name for AGV</value>
 	''' <returns>Return the current name of AGV</returns>
@@ -84,7 +85,6 @@ Public Class AGV
 			RaiseEvent PropertyChanged(Me, New System.ComponentModel.PropertyChangedEventArgs("Name"))
 		End Set
     End Property
-
     Property group As Byte
         Get
             Return _group
@@ -94,7 +94,7 @@ Public Class AGV
         End Set
     End Property
 	''' <summary>
-	''' Set or get array of battery value
+    ''' ***Set or get array of battery value***
 	''' </summary>
 	''' <returns>Return array of battery value</returns>
 	''' <remarks>The battery value's size is one byte</remarks>
@@ -111,7 +111,7 @@ Public Class AGV
 		End Set
 	End Property
 	''' <summary>
-	''' Set new route (Part) or get current route (part) of AGV
+    ''' ***Set new route (Part) or get current route (part) of AGV***
 	''' </summary>
 	''' <returns>Return the current route number of AGV</returns>
 	Property SupplyPartStatus As Byte
@@ -124,7 +124,7 @@ Public Class AGV
 		End Set
 	End Property
 	''' <summary>
-	''' 
+    ''' ******
 	''' </summary>
 	''' <value></value>
 	''' <returns></returns>
@@ -165,6 +165,28 @@ Public Class AGV
             RaiseEvent PropertyChanged(Me, New System.ComponentModel.PropertyChangedEventArgs("Position"))
         End Set
     End Property
+    Property TIMEOUT As Integer
+        Get
+            Return _TIMEOUT
+        End Get
+        Set(value As Integer)
+            _TIMEOUT = value
+            timerDisconnect.Interval = _TIMEOUT
+        End Set
+    End Property
+    Property TIME_FREE As Integer
+        Get
+            Return _TIME_FREE
+        End Get
+        Set(value As Integer)
+            _TIME_FREE = value
+            timerFree.Interval = _TIME_FREE
+        End Set
+    End Property
+
+    Public SupplyTime As DateTime = Now
+    Public FreeTime As DateTime = Now
+
 	''' <summary>
 	''' Create and return new AGV object, using the specified name
 	''' </summary>
@@ -239,8 +261,11 @@ Public Class AGV
 	End Sub
 	Private Sub timerFree_Elapsed(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles timerFree.Elapsed
 		BeingStartPoint = False
-        If Status = RobocarStatusValue.STOP_BY_CARD Then WorkingStatus = RobocarWorkingStatusValue.FREE
-		timerFree.Stop()
+        If Status = RobocarStatusValue.STOP_BY_CARD Then
+            WorkingStatus = RobocarWorkingStatusValue.FREE
+            FreeTime = Now
+        End If
+        timerFree.Stop()
 	End Sub
 	''' <summary>
 	''' Request AGV run in new route
