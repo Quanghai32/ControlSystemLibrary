@@ -213,6 +213,7 @@ Public Class XBee
                     ReceiveCount = 0
                     ReceiveStep += 1
                 Case 3
+                    If ReceiveLen >= 100 Then ReceiveStep = 0
                     Receive(ReceiveCount) = DataReceive
                     ReceiveCount += 1
                     If ReceiveCount >= ReceiveLen Then
@@ -274,14 +275,17 @@ Public Class XBee
 		add(2) = Receive(6)
 		add(3) = Receive(5)
 		DataReceiveBuffer(DataReceiveBufferWriteIndex).len = ReceiveLen - 12
-		DataReceiveBuffer(DataReceiveBufferWriteIndex).ID = BitConverter.ToUInt32(add, 0)
-		For i = 0 To DataReceiveBuffer(DataReceiveBufferWriteIndex).len - 1
-			DataReceiveBuffer(DataReceiveBufferWriteIndex).data(i) = Receive(12 + i)
-		Next
-		DataReceiveBufferWriteIndex += 1
-		If DataReceiveBufferWriteIndex = MAX_BUFFER_SIZE Then DataReceiveBufferWriteIndex = 0
-		ReceiveBufferPut = True
-	End Function
+        DataReceiveBuffer(DataReceiveBufferWriteIndex).ID = BitConverter.ToUInt32(add, 0)
+        If DataReceiveBuffer(DataReceiveBufferWriteIndex).len > 8 Then
+            Return False
+        End If
+        For i = 0 To DataReceiveBuffer(DataReceiveBufferWriteIndex).len - 1
+            DataReceiveBuffer(DataReceiveBufferWriteIndex).data(i) = Receive(12 + i)
+        Next
+        DataReceiveBufferWriteIndex += 1
+        If DataReceiveBufferWriteIndex = MAX_BUFFER_SIZE Then DataReceiveBufferWriteIndex = 0
+        ReceiveBufferPut = True
+    End Function
 
 	Private Function TransmitBufferIsEmpy() As Boolean
 		If DataTransmitBufferReadIndex = DataTransmitBufferWriteIndex Then
