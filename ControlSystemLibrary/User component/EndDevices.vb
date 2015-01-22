@@ -152,6 +152,8 @@ Public Class CPart
     Private _group As Byte
     Private _target As Integer = 0
     Private _supplyCount As Integer = 0
+    Private _route As Integer = 0
+
     Property TIME_FULL As Integer = 10000
     Property TIME_EMPTY As Integer = 10000
     Friend EmptyCounter As Integer = 0
@@ -194,6 +196,14 @@ Public Class CPart
         End Get
         Set(value As Byte)
             _index = value
+        End Set
+    End Property
+    Property route As Integer
+        Get
+            Return _route
+        End Get
+        Set(value As Integer)
+            _route = value
         End Set
     End Property
     Private _AGVSupply As String

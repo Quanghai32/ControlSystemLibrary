@@ -45,7 +45,8 @@ Public Class AGV
 
 	Private WithEvents timerDisconnect As Timer
 	Private WithEvents timerFree As Timer
-	Private BeingStartPoint As Boolean = False
+    Private BeingStartPoint As Boolean = False
+    Private _index As Integer
     Private _group As Byte
 	Private _Enable As Boolean
 	Private _Name As String = "AGV"
@@ -57,6 +58,15 @@ Public Class AGV
     Private _Position As Integer
     Private _TIMEOUT As Integer = 4000
     Private _TIME_FREE As Integer = 5000
+
+    Property index As Integer
+        Get
+            Return _index
+        End Get
+        Set(value As Integer)
+            _index = value
+        End Set
+    End Property
 	''' <summary>
     ''' ***Get or set using status of AGV***
 	''' </summary>
