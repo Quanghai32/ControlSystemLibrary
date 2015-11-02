@@ -5,7 +5,7 @@ Public Class AGV
 	Implements System.ComponentModel.INotifyPropertyChanged
 	Private Event PropertyChanged(ByVal sender As Object, ByVal e As System.ComponentModel.PropertyChangedEventArgs) Implements System.ComponentModel.INotifyPropertyChanged.PropertyChanged
 
-	Friend myXbee As XBee
+	Public myXbee As Xbee
 	Private _RobocarStatusName As String() = New String(7) {"Unknown", "Emergency", "Safety", "Stop", "Out of line", "Battery Empty", "No Cart", "Normal"}
 	''' <summary>
 	''' Define the name of all status of AGV - Use with status property
@@ -256,12 +256,12 @@ Public Class AGV
             timerFree.Stop()
             WorkingStatus = RobocarWorkingStatusValue.SUPPLYING
         End If
-        SupplyPartStatus = data(3)
+		SupplyPartStatus = data(3)
         Dim i As Byte
         For i = 0 To 3
             Battery(i) = data(4 + i)
-        Next
-    End Sub
+		Next
+	End Sub
 	Friend Function getAdress() As UInt32 Implements XbeeDevices.getAddress
 		Return Address
 	End Function

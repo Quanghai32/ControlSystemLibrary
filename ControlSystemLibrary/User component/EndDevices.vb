@@ -12,7 +12,7 @@ Public Class EndDevices
     Public Parts() As CPart
     Private WithEvents timerDisconnect As Timer
 
-    Friend myXbee As XBee
+    Public myXbee As XBee
 
     Property connecting As Boolean
         Get

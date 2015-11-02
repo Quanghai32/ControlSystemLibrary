@@ -1,7 +1,8 @@
 ﻿Imports System.IO.Ports
 Imports System.Windows.Forms
 
-Public Class XBee
+Public Class Xbee
+	Implements IDisposable
 	Friend ChildComponent As List(Of XbeeDevices)
 	Const MAX_DATA_LENGTH As Byte = 8
 	Const MAX_BUFFER_SIZE As Byte = 30
@@ -9,13 +10,37 @@ Public Class XBee
 	Enum RFID_command
 		TRANSMIT = &H10
 		RECEIVE = &H90
-		RESPOND = &H88
+		AT_RESPOND = &H88
+		REMOTE_AT_RESPOND = &H97
 	End Enum
 
-	Enum AT_COMMAND_ENUM
+	Enum AT_COMMAND_ENUM As Int16
 		SERIAL_NUMBER_LOW = &H534C 'SL
 		PAN_ID = &H4944	'ID
+		APPLY_CHANGE = &H4143 'AC
+		WRITE = &H5752 'WR
+		CHANNEL = &H4348 'CH
 	End Enum
+
+	Enum DELIVERY_STATUS_ENUM As Byte
+		SUCCESS = &H0
+		MAC_ACK_FAILURE = &H1
+		INVALUD_DES_ENDPOINT = &H15
+		NETWORK_ACK_FAILURE = &H21
+		ROUTE_NOT_FOUND = &H25
+		DONT_KNOW = 99
+	End Enum
+
+	Enum COMMAND_STATUS_ENUM As Byte
+		OK = &H0
+		ERR = 1
+		INVALID_COMMAND = 2
+		INVALID_PARAMETER = 3
+		TX_FAILURE = 4
+		DONT_KNOW = 99
+	End Enum
+
+
 	Public Structure XBeeDataStruct
 		Public ID As UInt32
 		Public len As Byte
@@ -31,13 +56,17 @@ Public Class XBee
 	''' <summary>
 	''' Personal area network (PAN) ID
 	''' </summary>
-	Public Property PID As Int16
+	Public Property ID As Int16
+	Public Property CH As Integer
+
 	''' <summary>
 	''' Physical address of Xbee
 	''' </summary>
 	Public Property Address As UInt32
+	Public delivery_status As DELIVERY_STATUS_ENUM
+	Public command_status As COMMAND_STATUS_ENUM
 
-	Private port As SerialPort
+	Public port As SerialPort
 	Private transmitData() As Byte
 
 	Private Receive() As Byte
@@ -66,7 +95,7 @@ Public Class XBee
 		MyBase.New()
 		SettingPort(PortName, PortBaudRate)
 		Address = XBeeAddress
-		PID = XBeePID
+		ID = XBeePID
 		init()
 	End Sub
 	''' <summary>
@@ -77,7 +106,7 @@ Public Class XBee
 	Public Sub New(ByVal XBeeAddress As UInt32, ByVal XBeePID As Byte)
 		MyBase.New()
 		Address = XBeeAddress
-		PID = XBeePID
+		ID = XBeePID
 		init()
 	End Sub
 	''' <summary>
@@ -91,7 +120,7 @@ Public Class XBee
 		MyBase.New()
 		SettingPort(PortName, 9600)
 		Address = XBeeAddress
-		PID = XBeePID
+		ID = XBeePID
 		init()
 	End Sub
 	''' <summary>
@@ -101,7 +130,7 @@ Public Class XBee
 	Public Sub New()
 		MyBase.New()
 		Address = 0
-		PID = 0
+		ID = 0
 		init()
 	End Sub
 
@@ -171,62 +200,62 @@ Public Class XBee
 		transmitData(len + 3) = &HFF - sumArray(0)
 	End Sub
 
-    Private Sub SendData(ByVal Dest As UInt32, ByVal data() As Byte, ByVal len As Byte)
-        If IsNothing(port) Then
-            Return
-        ElseIf Not port.IsOpen Then
-            Return
-        End If
-        Dim i As Byte
-        Dim DestByte As Byte
-        'Set length
-        transmitData(2) = 14 + len
-        For i = 0 To 3
-            DestByte = (Dest >> (24 - i * 8)) And &HFF
-            transmitData(9 + i) = DestByte
-        Next
-        For i = 0 To len - 1
-            transmitData(17 + i) = data(i)
-        Next
-        setChecksumByte()
-        port.Write(transmitData, 0, 26)
-    End Sub
+	Private Sub SendData(ByVal Dest As UInt32, ByVal data() As Byte, ByVal len As Byte)
+		If IsNothing(port) Then
+			Return
+		ElseIf Not port.IsOpen Then
+			Return
+		End If
+		Dim i As Byte
+		Dim DestByte As Byte
+		'Set length
+		transmitData(2) = 14 + len
+		For i = 0 To 3
+			DestByte = (Dest >> (24 - i * 8)) And &HFF
+			transmitData(9 + i) = DestByte
+		Next
+		For i = 0 To len - 1
+			transmitData(17 + i) = data(i)
+		Next
+		setChecksumByte()
+		port.Write(transmitData, 0, 26)
+	End Sub
 	Private Sub Port_DataReceived(ByVal sender As System.Object, ByVal e As System.IO.Ports.SerialDataReceivedEventArgs)
 		Dim DataReceive As Byte
-        Dim i As Integer
-        If port.IsOpen = False Then
-            Return
-        End If
-        For i = 0 To port.BytesToRead - 1
-            DataReceive = port.ReadByte()
-            If (DataReceive = &H7E) And (ReceiveStep = 0) Then
-                ReceiveStep = 1
-                Exit Sub
-            End If
-            Select Case ReceiveStep
-                Case 1
-                    ReceiveLenArray(1) = DataReceive
-                    ReceiveStep += 1
-                Case 2
-                    ReceiveLenArray(0) = DataReceive
-                    ReceiveLen = BitConverter.ToInt16(ReceiveLenArray, 0)
-                    ReceiveCount = 0
-                    ReceiveStep += 1
-                Case 3
-                    If ReceiveLen >= 100 Then ReceiveStep = 0
-                    Receive(ReceiveCount) = DataReceive
-                    ReceiveCount += 1
-                    If ReceiveCount >= ReceiveLen Then
-                        ReceiveStep += 1
-                    End If
-                Case 4
-                    ReceiveCheck = DataReceive
-                    If ReceiveCheckSum() Then
-                        analizeInformationReceived()
-                    End If
-                    ReceiveStep = 0
-            End Select
-        Next
+		Dim i As Integer
+		If port.IsOpen = False Then
+			Return
+		End If
+		For i = 0 To port.BytesToRead - 1
+			DataReceive = port.ReadByte()
+			If (DataReceive = &H7E) And (ReceiveStep = 0) Then
+				ReceiveStep = 1
+				Exit Sub
+			End If
+			Select Case ReceiveStep
+				Case 1
+					ReceiveLenArray(1) = DataReceive
+					ReceiveStep += 1
+				Case 2
+					ReceiveLenArray(0) = DataReceive
+					ReceiveLen = BitConverter.ToInt16(ReceiveLenArray, 0)
+					ReceiveCount = 0
+					ReceiveStep += 1
+				Case 3
+					If ReceiveLen >= 100 Then ReceiveStep = 0
+					Receive(ReceiveCount) = DataReceive
+					ReceiveCount += 1
+					If ReceiveCount >= ReceiveLen Then
+						ReceiveStep += 1
+					End If
+				Case 4
+					ReceiveCheck = DataReceive
+					If ReceiveCheckSum() Then
+						analizeInformationReceived()
+					End If
+					ReceiveStep = 0
+			End Select
+		Next
 	End Sub
 	Private Function ReceiveCheckSum() As Boolean
 		Dim i As Byte
@@ -275,17 +304,17 @@ Public Class XBee
 		add(2) = Receive(6)
 		add(3) = Receive(5)
 		DataReceiveBuffer(DataReceiveBufferWriteIndex).len = ReceiveLen - 12
-        DataReceiveBuffer(DataReceiveBufferWriteIndex).ID = BitConverter.ToUInt32(add, 0)
-        If DataReceiveBuffer(DataReceiveBufferWriteIndex).len > 8 Then
-            Return False
-        End If
-        For i = 0 To DataReceiveBuffer(DataReceiveBufferWriteIndex).len - 1
-            DataReceiveBuffer(DataReceiveBufferWriteIndex).data(i) = Receive(12 + i)
-        Next
-        DataReceiveBufferWriteIndex += 1
-        If DataReceiveBufferWriteIndex = MAX_BUFFER_SIZE Then DataReceiveBufferWriteIndex = 0
-        ReceiveBufferPut = True
-    End Function
+		DataReceiveBuffer(DataReceiveBufferWriteIndex).ID = BitConverter.ToUInt32(add, 0)
+		If DataReceiveBuffer(DataReceiveBufferWriteIndex).len > 8 Then
+			Return False
+		End If
+		For i = 0 To DataReceiveBuffer(DataReceiveBufferWriteIndex).len - 1
+			DataReceiveBuffer(DataReceiveBufferWriteIndex).data(i) = Receive(12 + i)
+		Next
+		DataReceiveBufferWriteIndex += 1
+		If DataReceiveBufferWriteIndex = MAX_BUFFER_SIZE Then DataReceiveBufferWriteIndex = 0
+		ReceiveBufferPut = True
+	End Function
 
 	Private Function TransmitBufferIsEmpy() As Boolean
 		If DataTransmitBufferReadIndex = DataTransmitBufferWriteIndex Then
@@ -327,7 +356,7 @@ Public Class XBee
 	''' <remarks></remarks>
 	Public Sub SettingPort(ByVal name As String, ByVal BaudRate As Integer)
 		If IsNothing(port) Then port = New SerialPort()
-        If port.IsOpen Then port.Close()
+		If port.IsOpen Then port.Close()
 		Try
 			port.PortName = name
 			port.BaudRate = BaudRate
@@ -424,25 +453,45 @@ Public Class XBee
 							Dim ob As XbeeDevices
 							receiveData = getd()
 							For Each ob In ChildComponent
-                                If ob.getAddress = receiveData.ID Then
-                                    ob.analizeInput(receiveData.ID, receiveData.data, receiveData.len)
-                                    Exit For
-                                End If
+								If ob.getAddress = receiveData.ID Then
+									ob.analizeInput(receiveData.ID, receiveData.data, receiveData.len)
+									Exit For
+								End If
 							Next
 						End While
 					End If
 				End If
-			Case RFID_command.RESPOND
-				Dim AT_Command As Int16
+				Debug.Print("Received transmit data")
+			Case RFID_command.AT_RESPOND
+				Dim AT_Command As AT_COMMAND_ENUM
 				AT_Command = Receive(2) * 256 + Receive(3)
+				Dim temp As COMMAND_STATUS_ENUM = Receive(4)
+				Debug.Print("Receive AT_RESPOND of command " & AT_Command.ToString & " with status " & temp.ToString)
 				Select Case AT_Command
 					Case AT_COMMAND_ENUM.SERIAL_NUMBER_LOW
 						Dim add As Byte() = New Byte(3) {Receive(8), Receive(7), Receive(6), Receive(5)}
 						Address = BitConverter.ToUInt32(add, 0)
+						Debug.Print("Received AT address: " & Conversion.Hex(Address))
+					Case AT_COMMAND_ENUM.CHANNEL
+						If ReceiveLen = 7 Then
+							Dim Channel As Byte = Receive(5)
+							CH = Channel
+							Debug.Print("Received AT CH: " & Conversion.Hex(CH))
+						End If
 					Case AT_COMMAND_ENUM.PAN_ID
-						Dim pan_id As Byte() = New Byte(1) {Receive(6), Receive(5)}
-						PID = BitConverter.ToInt16(pan_id, 0)
+						If ReceiveLen = 6 Then
+							Dim pan_id As Byte() = New Byte(1) {Receive(6), Receive(5)}
+							ID = BitConverter.ToInt16(pan_id, 0)
+							Debug.Print("Received AT ID: " & Conversion.Hex(ID))
+						End If
 				End Select
+				command_status = temp
+			Case RFID_command.REMOTE_AT_RESPOND
+				Dim AT_Command As AT_COMMAND_ENUM
+				AT_Command = Receive(12) * 256 + Receive(13)
+				Dim temp As COMMAND_STATUS_ENUM = Receive(14)
+				Debug.Print("Received remode AT respond: " & AT_Command.ToString & " with status " & temp.ToString)
+				command_status = temp
 		End Select
 	End Sub
 	Public Sub Send_AT_Command(ByVal cmd As AT_COMMAND_ENUM)
@@ -470,8 +519,131 @@ Public Class XBee
 		data(len + 3) = &HFF - sumArray(0)
 
 		port.Write(data, 0, 8)
+	End Sub
+	Public Sub Send_AT_Command(ByVal cmd As AT_COMMAND_ENUM, ByVal parameter() As Byte)
+		Dim data As Byte()
+		Dim command As Byte() = BitConverter.GetBytes(cmd)
+		data = New Byte(7 + parameter.Length) {}
+		data(0) = &H7E
+		data(1) = 0
+		data(2) = 4 + parameter.Length
+		data(3) = &H8
+		data(4) = &H1
+		data(5) = command(1)
+		data(6) = command(0)
+		For j As Byte = 0 To parameter.Length - 1
+			data(7 + j) = parameter(j)
+		Next
+
+		Dim i As Byte
+		Dim sum As Integer
+		Dim sumArray() As Byte
+		Dim len As Byte
+		len = 4 + parameter.Length
+		sum = 0
+		For i = 3 To len + 2
+			sum = sum + data(i)
+		Next
+		sumArray = BitConverter.GetBytes(sum)
+		data(len + 3) = &HFF - sumArray(0)
+
+		port.Write(data, 0, data.Length)
+	End Sub
+
+	Public Sub Send_Remote_AT_Command(ByVal address As UInt32, ByVal RemoteOption As Byte, ByVal cmd As AT_COMMAND_ENUM)
+		Dim data As Byte()
+		Dim command As Byte() = BitConverter.GetBytes(cmd)
+		data = New Byte(18) {&H7E, &H0, &HF, &H17, &H1, &H0, &H13, &HA2, &H0, 0, 0, 0, 0, &HFF, &HFE, RemoteOption, command(1), command(0), 0}
+		Dim DestByte As Byte
+		For i = 0 To 3
+			DestByte = (address >> (24 - i * 8)) And &HFF
+			data(9 + i) = DestByte
+		Next
+
+		Dim sum As Integer
+		Dim sumArray() As Byte
+		Dim len As Byte
+		len = data.Length
+		sum = 0
+		For i = 3 To len - 1
+			sum = sum + data(i)
+		Next
+		sumArray = BitConverter.GetBytes(sum)
+		data(len - 1) = &HFF - sumArray(0)
+
+		port.Write(data, 0, len)
 
 	End Sub
+	Public Sub Send_Remote_AT_Command(ByVal address As UInt32, ByVal RemoteOption As Byte, ByVal cmd As AT_COMMAND_ENUM, ByVal Parameter() As Byte)
+		Dim data As Byte()
+		Dim command As Byte() = BitConverter.GetBytes(cmd)
+		data = New Byte(18 + Parameter.Length) {}
+		data(0) = &H7E
+		data(1) = &H0
+		data(2) = data.Length - 4
+		data(3) = &H17
+		data(4) = &H1
+		data(5) = &H0
+		data(6) = &H13
+		data(7) = &HA2
+		data(8) = &H0
+		Dim DestByte As Byte
+		For i = 0 To 3
+			DestByte = (address >> (24 - i * 8)) And &HFF
+			data(9 + i) = DestByte
+		Next
+		data(13) = &HFF
+		data(14) = &HFE
+		data(15) = RemoteOption
+		data(16) = command(1)
+		data(17) = command(0)
+		For i As Byte = 0 To Parameter.Length - 1
+			data(18 + i) = Parameter(i)
+		Next
+		Dim sum As Integer
+		Dim sumArray() As Byte
+		Dim len As Byte
+		len = data.Length
+		sum = 0
+		For i = 3 To len - 1
+			sum = sum + data(i)
+		Next
+		sumArray = BitConverter.GetBytes(sum)
+		data(len - 1) = &HFF - sumArray(0)
+
+		port.Write(data, 0, len)
+	End Sub
+
+#Region "IDisposable Support"
+	Private disposedValue As Boolean ' To detect redundant calls
+
+	' IDisposable
+	Protected Overridable Sub Dispose(disposing As Boolean)
+		If Not Me.disposedValue Then
+			If disposing Then
+				' TODO: dispose managed state (managed objects).
+			End If
+
+			' TODO: free unmanaged resources (unmanaged objects) and override Finalize() below.
+			' TODO: set large fields to null.
+		End If
+		Me.disposedValue = True
+	End Sub
+
+	' TODO: override Finalize() only if Dispose(ByVal disposing As Boolean) above has code to free unmanaged resources.
+	'Protected Overrides Sub Finalize()
+	'    ' Do not change this code.  Put cleanup code in Dispose(ByVal disposing As Boolean) above.
+	'    Dispose(False)
+	'    MyBase.Finalize()
+	'End Sub
+
+	' This code added by Visual Basic to correctly implement the disposable pattern.
+	Public Sub Dispose() Implements IDisposable.Dispose
+		' Do not change this code.  Put cleanup code in Dispose(disposing As Boolean) above.
+		Dispose(True)
+		GC.SuppressFinalize(Me)
+	End Sub
+#End Region
 
 End Class
 
