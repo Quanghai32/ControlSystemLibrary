@@ -1,13 +1,13 @@
 ﻿Imports System.IO.Ports
 Imports System.Windows.Forms
 
-Public Class Xbee
+Public Class XBee
 	Implements IDisposable
-	Friend ChildComponent As List(Of XbeeDevices)
-	Const MAX_DATA_LENGTH As Byte = 8
+	Friend ChildComponent As List(Of IXbeeDevices)
+	Const MAX_DATA_LENGTH As Byte = 12
 	Const MAX_BUFFER_SIZE As Byte = 30
 	Const TIME_TRANSMIT As Integer = 10
-	Enum RFID_command
+	Enum API_Commad
 		TRANSMIT = &H10
 		RECEIVE = &H90
 		AT_RESPOND = &H88
@@ -20,6 +20,7 @@ Public Class Xbee
 		APPLY_CHANGE = &H4143 'AC
 		WRITE = &H5752 'WR
 		CHANNEL = &H4348 'CH
+		CHANNEL_S2B = &H5343 'SC
 	End Enum
 
 	Enum DELIVERY_STATUS_ENUM As Byte
@@ -56,7 +57,7 @@ Public Class Xbee
 	''' <summary>
 	''' Personal area network (PAN) ID
 	''' </summary>
-	Public Property ID As Int16
+	Public Property ID As Integer
 	Public Property CH As Integer
 
 	''' <summary>
@@ -152,7 +153,7 @@ Public Class Xbee
 		TimerReceiveCheck.Interval = 10
 		TimerReceiveCheck.Enabled = False
 
-		ChildComponent = New List(Of XbeeDevices)
+		ChildComponent = New List(Of IXbeeDevices)
 	End Sub
 	Private Sub setupTransmitData()
 		transmitData = New Byte(29) {}
@@ -160,7 +161,7 @@ Public Class Xbee
 		transmitData(1) = &H0		'High byte of length
 		transmitData(2) = &H16		'Low byte of length
 		transmitData(3) = &H10		'Frame tyte - Transmit command
-		transmitData(4) = &H1	   'Frame ID
+		transmitData(4) = &H1		'Frame ID
 		'From byte 5 to byte 12 is 64-bits address
 		transmitData(5) = &H0
 		transmitData(6) = &H13
@@ -186,7 +187,7 @@ Public Class Xbee
 		transmitData(24) = &H8
 		transmitData(25) = &H0		'Checksum = 0xFF - the 8bit sum of byte from of bytes from offset 3 to this byte
 	End Sub
-	Private Sub setChecksumByte()
+	Private Sub setChecksumByte()			'checksum when send data
 		Dim i As Byte
 		Dim sum As Integer
 		Dim sumArray() As Byte
@@ -220,6 +221,7 @@ Public Class Xbee
 		setChecksumByte()
 		port.Write(transmitData, 0, 26)
 	End Sub
+
 	Private Sub Port_DataReceived(ByVal sender As System.Object, ByVal e As System.IO.Ports.SerialDataReceivedEventArgs)
 		Dim DataReceive As Byte
 		Dim i As Integer
@@ -227,6 +229,9 @@ Public Class Xbee
 			Return
 		End If
 		For i = 0 To port.BytesToRead - 1
+			If port.IsOpen = False Then
+				Return
+			End If
 			DataReceive = port.ReadByte()
 			If (DataReceive = &H7E) And (ReceiveStep = 0) Then
 				ReceiveStep = 1
@@ -235,10 +240,19 @@ Public Class Xbee
 			Select Case ReceiveStep
 				Case 1
 					ReceiveLenArray(1) = DataReceive
-					ReceiveStep += 1
+					If (ReceiveLenArray(1) > 0) Then
+						ReceiveStep = 0
+					Else
+						ReceiveStep += 1
+					End If
 				Case 2
 					ReceiveLenArray(0) = DataReceive
-					ReceiveLen = BitConverter.ToInt16(ReceiveLenArray, 0)
+					Try
+						ReceiveLen = BitConverter.ToUInt16(ReceiveLenArray, 0)
+					Catch ex As Exception
+						ReceiveStep = 0
+						Exit Select
+					End Try
 					ReceiveCount = 0
 					ReceiveStep += 1
 				Case 3
@@ -257,21 +271,26 @@ Public Class Xbee
 			End Select
 		Next
 	End Sub
-	Private Function ReceiveCheckSum() As Boolean
+
+	Private Function ReceiveCheckSum() As Boolean			'checksum when recive data
 		Dim i As Byte
 		Dim sum As Integer
 		Dim sumArray() As Byte
 		Dim calcChecksum As Byte
 		sum = 0
-		For i = 0 To ReceiveLen - 1
-			sum = sum + Receive(i)
-		Next
-		sumArray = BitConverter.GetBytes(sum)
-		calcChecksum = &HFF - sumArray(0)
-		If calcChecksum = ReceiveCheck Then
-			ReceiveCheckSum = True
-		Else
+		If ReceiveLen < 1 Then
 			ReceiveCheckSum = False
+		Else
+			For i = 0 To ReceiveLen - 1
+				sum = sum + Receive(i)
+			Next
+			sumArray = BitConverter.GetBytes(sum)
+			calcChecksum = &HFF - sumArray(0)
+			If calcChecksum = ReceiveCheck Then
+				ReceiveCheckSum = True
+			Else
+				ReceiveCheckSum = False
+			End If
 		End If
 	End Function
 
@@ -305,9 +324,9 @@ Public Class Xbee
 		add(3) = Receive(5)
 		DataReceiveBuffer(DataReceiveBufferWriteIndex).len = ReceiveLen - 12
 		DataReceiveBuffer(DataReceiveBufferWriteIndex).ID = BitConverter.ToUInt32(add, 0)
-		If DataReceiveBuffer(DataReceiveBufferWriteIndex).len > 8 Then
-			Return False
-		End If
+        If DataReceiveBuffer(DataReceiveBufferWriteIndex).len > 12 Then 'tocheck: why data>12
+            Return False
+        End If
 		For i = 0 To DataReceiveBuffer(DataReceiveBufferWriteIndex).len - 1
 			DataReceiveBuffer(DataReceiveBufferWriteIndex).data(i) = Receive(12 + i)
 		Next
@@ -376,14 +395,14 @@ Public Class Xbee
 	''' Gets a value indicating the status of receive buffer in Xbee object
 	''' </summary>
 	''' <returns>Return true if there are some data in receive buffer, if receive buffer is empty, return false</returns>
-	Public Function kbhit() As Boolean
+	Private Function kbhit() As Boolean
 		Return Xbee_isKbhit
 	End Function
 	''' <summary>
 	''' Gets a value indicating the status of transmit buffer in Xbee object
 	''' </summary>
 	''' <returns>Return true if transmit buffer isn't full, it mean we can put more data to transmit buffer, if transmit buffer is full, return false</returns>
-	Public Function tbe() As Boolean
+	Private Function tbe() As Boolean
 		Return Not TransmitBufferIsFull()
 	End Function
 	''' <summary>
@@ -408,12 +427,12 @@ Public Class Xbee
 	''' </summary>
 	''' <returns>Return data if success, return nothing if failure</returns>
 	''' <remarks></remarks>
-	Public Function getd() As XBeeDataStruct
+	Private Function getd() As XBeeDataStruct
 		Dim XbeeData As XBeeDataStruct = New XBeeDataStruct(0)
 		If ReceiveBufferIsEmpy() Then
 			Xbee_isKbhit = False
 			TimerReceiveCheck.Enabled = False
-			getd = Nothing
+			Return Nothing 'getd = Nothing
 			Exit Function
 		End If
 		XbeeData.ID = DataReceiveBuffer(DataReceiveBufferReadIndex).ID
@@ -421,7 +440,7 @@ Public Class Xbee
 		XbeeData.data = DataReceiveBuffer(DataReceiveBufferReadIndex).data
 		DataReceiveBufferReadIndex += 1
 		If DataReceiveBufferReadIndex = MAX_BUFFER_SIZE Then DataReceiveBufferReadIndex = 0
-		getd = XbeeData
+		Return XbeeData	'getd = XbeeData
 	End Function
 
 	Private Sub TransmitCounter_Tick(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles TransmitCounter.Elapsed
@@ -442,15 +461,16 @@ Public Class Xbee
 
 	Private Sub analizeInformationReceived()
 		Select Case Receive(0)
-			Case RFID_command.RECEIVE
+			Case API_Commad.RECEIVE
 				If Not ReceiveBufferIsFull() Then
 					ReceiveBufferPut()
-					TimerReceiveCheck.Enabled = True
+					'TOCHECK: tai sao khong dung?
+					'TimerReceiveCheck.Enabled = True
 					Xbee_isKbhit = True
 					If ChildComponent.Count <> 0 Then
 						While Xbee_isKbhit
 							Dim receiveData As XBeeDataStruct
-							Dim ob As XbeeDevices
+							Dim ob As IXbeeDevices
 							receiveData = getd()
 							For Each ob In ChildComponent
 								If ob.getAddress = receiveData.ID Then
@@ -462,7 +482,7 @@ Public Class Xbee
 					End If
 				End If
 				Debug.Print("Received transmit data")
-			Case RFID_command.AT_RESPOND
+			Case API_Commad.AT_RESPOND
 				Dim AT_Command As AT_COMMAND_ENUM
 				AT_Command = Receive(2) * 256 + Receive(3)
 				Dim temp As COMMAND_STATUS_ENUM = Receive(4)
@@ -473,20 +493,31 @@ Public Class Xbee
 						Address = BitConverter.ToUInt32(add, 0)
 						Debug.Print("Received AT address: " & Conversion.Hex(Address))
 					Case AT_COMMAND_ENUM.CHANNEL
-						If ReceiveLen = 7 Then
+						If ReceiveLen = 6 Then
 							Dim Channel As Byte = Receive(5)
 							CH = Channel
 							Debug.Print("Received AT CH: " & Conversion.Hex(CH))
 						End If
 					Case AT_COMMAND_ENUM.PAN_ID
-						If ReceiveLen = 6 Then
+						If ReceiveLen = 7 Then
 							Dim pan_id As Byte() = New Byte(1) {Receive(6), Receive(5)}
 							ID = BitConverter.ToInt16(pan_id, 0)
 							Debug.Print("Received AT ID: " & Conversion.Hex(ID))
+						ElseIf ReceiveLen = 13 Then
+							Dim pan_id As Byte() = New Byte(1) {Receive(12), Receive(11)}
+							ID = BitConverter.ToInt16(pan_id, 0)
+							Debug.Print("Received AT ID: " & Conversion.Hex(ID))
 						End If
+					Case AT_COMMAND_ENUM.CHANNEL_S2B
+						If ReceiveLen = 7 Then
+							Dim temp_sc As Byte() = New Byte(1) {Receive(6), Receive(5)}
+							CH = BitConverter.ToInt16(temp_sc, 0)
+							Debug.Print("Received AT ID: " & Conversion.Hex(CH))
+						End If
+
 				End Select
 				command_status = temp
-			Case RFID_command.REMOTE_AT_RESPOND
+			Case API_Commad.REMOTE_AT_RESPOND
 				Dim AT_Command As AT_COMMAND_ENUM
 				AT_Command = Receive(12) * 256 + Receive(13)
 				Dim temp As COMMAND_STATUS_ENUM = Receive(14)
@@ -516,9 +547,10 @@ Public Class Xbee
 			sum = sum + data(i)
 		Next
 		sumArray = BitConverter.GetBytes(sum)
-		data(len + 3) = &HFF - sumArray(0)
+		data(len + 3) = &HFF - sumArray(0)		'data(7)=CheckSum
 
 		port.Write(data, 0, 8)
+
 	End Sub
 	Public Sub Send_AT_Command(ByVal cmd As AT_COMMAND_ENUM, ByVal parameter() As Byte)
 		Dim data As Byte()
@@ -641,13 +673,9 @@ Public Class Xbee
 	Public Sub Dispose() Implements IDisposable.Dispose
 		' Do not change this code.  Put cleanup code in Dispose(disposing As Boolean) above.
 		Dispose(True)
-		GC.SuppressFinalize(Me)
+		''GC.SuppressFinalize(Me)
 	End Sub
 #End Region
 
 End Class
 
-Public Interface XbeeDevices
-    Sub analizeInput(ByVal ID As UInt32, ByVal data() As Byte, ByVal len As Byte)
-    Function getAddress() As UInt32
-End Interface

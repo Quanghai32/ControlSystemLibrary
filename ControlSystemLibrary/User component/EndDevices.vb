@@ -1,18 +1,32 @@
 ﻿Imports System.Timers
 Public Class EndDevices
-    Implements XbeeDevices
+    Implements IXbeeDevices
     Implements System.ComponentModel.INotifyPropertyChanged
     Property Address As UInt32
     Property PID As Byte
-    Protected Property MAX_DEVICES As Byte
-
     Property TIMEOUT As Integer = 4000
+    Property Host As Byte
 
     Private _connecting As Boolean
-    Public Parts() As CPart
+    Public Parts As List(Of CPart)
+    Public CollectPart_PerEnd As Collection
     Private WithEvents timerDisconnect As Timer
-
+    Public _VitualMode As Boolean = False
     Public myXbee As XBee
+
+    Property VitualMode As Boolean
+        Get
+            Return _VitualMode
+        End Get
+        Set(value As Boolean)
+            _VitualMode = value
+            If value Then
+                connecting = True
+            Else
+                connecting = False
+            End If
+        End Set
+    End Property
 
     Property connecting As Boolean
         Get
@@ -20,39 +34,66 @@ Public Class EndDevices
         End Get
         Set(ByVal value As Boolean)
             _connecting = value
-            For i As Byte = 0 To MAX_DEVICES - 1
-                Parts(i).connecting = value
-            Next
+            If Parts.Count > 0 Then
+                For i As Byte = 0 To Parts.Count - 1
+                    Parts(i).connecting = value
+                Next
+            End If
             RaiseEvent PropertyChanged(Me, New System.ComponentModel.PropertyChangedEventArgs("connecting"))
         End Set
     End Property
 
     Public Sub New()
-        MAX_DEVICES = 0
         init()
     End Sub
-    Public Sub New(ByVal DeviceLimit As Byte)
-        MAX_DEVICES = DeviceLimit
-        init()
-    End Sub
-    Public Sub New(ByVal DeviceLimit As Byte, ByVal add As UInt32)
-        MAX_DEVICES = DeviceLimit
-        Address = add
-        init()
-    End Sub
+    'Public Sub New(ByVal DeviceLimit As Byte)
+    '	MAX_DEVICES = DeviceLimit
+    '	init()
+    'End Sub
+    'Public Sub New(ByVal DeviceLimit As Byte, ByVal add As UInt32)
+    '	MAX_DEVICES = DeviceLimit
+    '	Address = add
+    '	init()
+    'End Sub
 
+    'Public Sub init()
+    '	Dim i As Byte
+    '	If MAX_DEVICES > 0 Then
+    '		Parts = New CPart(MAX_DEVICES - 1) {}
+    '		For i = 0 To MAX_DEVICES - 1
+    '			Parts(i) = New CPart
+    '			Parts(i).parent = Me
+    '		Next
+    '	End If
+    '	timerDisconnect = New Timer()
+    '	timerDisconnect.Interval = TIMEOUT
+    '	startTimer()
+    'End Sub
     Public Sub init()
-        Dim i As Byte
-        If MAX_DEVICES > 0 Then
-            Parts = New CPart(MAX_DEVICES - 1) {}
-            For i = 0 To MAX_DEVICES - 1
-				Parts(i) = New CPart
-				Parts(i).parent = Me
+        'CollectPart_PerEnd = New Collection
+        Parts = New List(Of CPart)
+        timerDisconnect = New Timer()
+        timerDisconnect.Interval = TIMEOUT
+        startTimer()
+    End Sub
+    Public Sub AddPart(Num As Byte)
+        If Num > 0 Then
+            'Parts = New CPart(Num - 1) {}
+            For i As Byte = 0 To Num - 1
+                Parts(i) = New CPart
+                Parts(i).NumberInEnd = i + 1
+                Parts(i).parent = Me
+                CollectPart_PerEnd.Add(Parts(i))
             Next
         End If
         timerDisconnect = New Timer()
         timerDisconnect.Interval = TIMEOUT
         startTimer()
+    End Sub
+
+    Public Sub AddPart(part As CPart)
+        part.parent = Me
+        Parts.Add(part)
     End Sub
 
     Private Sub startTimer()
@@ -61,17 +102,22 @@ Public Class EndDevices
     Private Sub stopTimer()
         timerDisconnect.Stop()
     End Sub
-    Friend Sub analizeInput(ByVal ID As UInt32, ByVal data() As Byte, ByVal len As Byte) Implements XbeeDevices.analizeInput
+
+    Friend Sub analizeInput(ByVal ID As UInt32, ByVal data() As Byte, ByVal len As Byte) Implements IXbeeDevices.analizeInput
+        If VitualMode Then
+            Return
+        End If
         Dim i As Byte
         If ID <> Address Then Return
-        If len <> 3 Then Return 'Standard about length of data is 3
+        If (len < Parts.Count) Then Return 'consider to show a message
         connecting = True
         timerDisconnect.Stop()
         timerDisconnect.Start()
         Static FullCounter As Integer = 0
         Static EmptyCounter As Integer = 0
-        For i = 0 To MAX_DEVICES - 1
-            If data(i) = 0 Then 'Sensor detect
+        If Parts.Count = 0 Then Return
+        For i = 0 To Parts.Count - 1      'For i = 0 To MAX_DEVICES - 1	
+            If data(i) = 0 Then                         'Sensor detect - Part Full
                 Parts(i).EmptyCounter = 0
                 If Parts(i).TIME_FULL = 0 Then   'If confirm timer is disable
                     If Parts(i).Status = False Then 'If part change from Full to Empty --> Save empty time
@@ -125,9 +171,10 @@ Public Class EndDevices
         Next
     End Sub
     Sub timerDisconnect_Tick(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles timerDisconnect.Elapsed
+        If VitualMode Then Return
         connecting = False
     End Sub
-    Friend Function getAddress() As UInt32 Implements XbeeDevices.getAddress
+    Friend Function getAddress() As UInt32 Implements IXbeeDevices.getAddress
         Return Address
     End Function
 
@@ -138,125 +185,14 @@ Public Class EndDevices
         data.len = 1
         myXbee.putd(data)
     End Sub
+    Public Sub DisableEndevice()
+        Dim data As XBee.XBeeDataStruct = New XBee.XBeeDataStruct(0)
+        data.ID = Address
+        data.data(0) = &H58 'Setting command - 'X'
+        data.len = 1
+        myXbee.putd(data)
+    End Sub
 
     Private Event PropertyChanged(ByVal sender As Object, ByVal e As System.ComponentModel.PropertyChangedEventArgs) Implements System.ComponentModel.INotifyPropertyChanged.PropertyChanged
 End Class
 
-Public Class CPart
-    Implements System.ComponentModel.INotifyPropertyChanged
-    Private _Enable As Boolean
-    Private _Name As String
-	Private _Status As Boolean = False
-    Private _index As Byte
-    Private _priority As Byte
-    Private _group As Byte
-    Private _target As Integer = 0
-    Private _supplyCount As Integer = 0
-    Private _route As Integer = 0
-
-    Property TIME_FULL As Integer = 10000
-    Property TIME_EMPTY As Integer = 10000
-    Friend EmptyCounter As Integer = 0
-    Friend FullCounter As Integer = 0
-	Public parent As EndDevices
-	Public isRequested As Boolean = False
-    Public EmptyTime As DateTime = Now
-    Public FullTime As DateTime = Now
-    Public SupplyTime As DateTime = Now
-    Property Enable As Boolean
-        Get
-            Return _Enable
-        End Get
-        Set(ByVal value As Boolean)
-            _Enable = value
-            RaiseEvent PropertyChanged(Me, New System.ComponentModel.PropertyChangedEventArgs("Enable"))
-        End Set
-    End Property
-    Property Name As String
-        Get
-            Return _Name
-        End Get
-        Set(ByVal value As String)
-            _Name = value
-            RaiseEvent PropertyChanged(Me, New System.ComponentModel.PropertyChangedEventArgs("Name"))
-        End Set
-    End Property
-    Property Status As Boolean
-        Get
-            Return _Status
-        End Get
-        Set(ByVal value As Boolean)
-            _Status = value
-            RaiseEvent PropertyChanged(Me, New System.ComponentModel.PropertyChangedEventArgs("Status"))
-        End Set
-    End Property
-    Property index As Byte
-        Get
-            Return _index
-        End Get
-        Set(value As Byte)
-            _index = value
-        End Set
-    End Property
-    Property route As Integer
-        Get
-            Return _route
-        End Get
-        Set(value As Integer)
-            _route = value
-        End Set
-    End Property
-    Private _AGVSupply As String
-    Public Property AGVSupply() As String
-        Get
-            Return _AGVSupply
-        End Get
-        Set(ByVal value As String)
-            _AGVSupply = value
-            RaiseEvent PropertyChanged(Me, New System.ComponentModel.PropertyChangedEventArgs("AGVSupply"))
-        End Set
-    End Property
-    Property priority As Byte
-        Get
-            Return _priority
-        End Get
-        Set(value As Byte)
-            _priority = value
-        End Set
-    End Property
-    Property group As Byte
-        Get
-            Return _group
-        End Get
-        Set(value As Byte)
-            _group = value
-        End Set
-    End Property
-    Property supplyCount As Integer
-        Get
-            Return _supplyCount
-        End Get
-        Set(value As Integer)
-            _supplyCount = value
-        End Set
-    End Property
-    Property target As Integer
-        Get
-            Return _target
-        End Get
-        Set(value As Integer)
-            _target = value
-            RaiseEvent PropertyChanged(Me, New System.ComponentModel.PropertyChangedEventArgs("target"))
-        End Set
-    End Property
-    Public Property connecting() As Boolean
-        Get
-            If IsNothing(parent) Then Return True
-            Return parent.connecting
-        End Get
-        Set(value As Boolean)
-            RaiseEvent PropertyChanged(Me, New System.ComponentModel.PropertyChangedEventArgs("connecting"))
-        End Set
-    End Property
-    Private Event PropertyChanged(ByVal sender As Object, ByVal e As System.ComponentModel.PropertyChangedEventArgs) Implements System.ComponentModel.INotifyPropertyChanged.PropertyChanged
-End Class

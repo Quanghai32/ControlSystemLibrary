@@ -172,7 +172,7 @@ Public Class PartDisplayControl
     Private Sub chkEnable_CheckedChanged(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles chkEnable.CheckedChanged
         If IsNothing(myDev) Then Return
         myDev.Parts(PartNum).Enable = chkEnable.Checked
-        myDev.connecting = myDev.connecting
+		myDev.connecting = myDev.connecting
         Dim iniFile As New CIniFile(Environment.CurrentDirectory + "\setting.ini")
         iniFile.WriteValue(PARTID, "enable", chkEnable.Checked.ToString)
     End Sub

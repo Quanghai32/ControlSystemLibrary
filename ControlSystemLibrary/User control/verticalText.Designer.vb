@@ -35,5 +35,4 @@ Partial Class verticalText
         Me.ResumeLayout(False)
 
     End Sub
-
 End Class

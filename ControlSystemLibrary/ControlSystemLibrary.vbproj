@@ -74,8 +74,10 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="SystemModule.vb" />
+    <Compile Include="User component\Cpart.vb" />
     <Compile Include="User component\AGV.vb" />
     <Compile Include="User component\CHistory.vb" />
+    <Compile Include="User component\IXbeeDevices.vb" />
     <Compile Include="User control\AGVDisplay.Designer.vb">
       <DependentUpon>AGVDisplay.vb</DependentUpon>
     </Compile>
