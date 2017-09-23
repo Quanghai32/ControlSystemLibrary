@@ -107,6 +107,12 @@
       <DependentUpon>Settings.settings</DependentUpon>
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
     </Compile>
+    <Compile Include="User control\CustomText.Designer.vb">
+      <DependentUpon>CustomText.vb</DependentUpon>
+    </Compile>
+    <Compile Include="User control\CustomText.vb">
+      <SubType>UserControl</SubType>
+    </Compile>
     <Compile Include="User control\PartDisplayControl.designer.vb">
       <DependentUpon>PartDisplayControl.vb</DependentUpon>
     </Compile>
@@ -145,6 +151,9 @@
       <LastGenOutput>Resources.Designer.vb</LastGenOutput>
       <CustomToolNamespace>My.Resources</CustomToolNamespace>
       <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="User control\CustomText.resx">
+      <DependentUpon>CustomText.vb</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="User control\PartDisplayControl.resx">
       <DependentUpon>PartDisplayControl.vb</DependentUpon>

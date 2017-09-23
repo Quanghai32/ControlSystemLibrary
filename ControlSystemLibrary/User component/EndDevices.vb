@@ -99,6 +99,7 @@ Public Class EndDevices
     Private Sub startTimer()
         timerDisconnect.Start()
     End Sub
+
     Private Sub stopTimer()
         timerDisconnect.Stop()
     End Sub

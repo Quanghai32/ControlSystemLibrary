@@ -20,8 +20,8 @@
     Property Text As Boolean
     Property TextSource As Integer
    
-	Friend EmptyCounter As Integer = 0
-	Friend FullCounter As Integer = 0
+	Public EmptyCounter As Integer = 0
+	Public FullCounter As Integer = 0
 	Public parent As Object
 	Public isRequested As Boolean = False
 	Public EmptyTime As DateTime = Now

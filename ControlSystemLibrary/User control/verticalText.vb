@@ -9,9 +9,6 @@ Public Class verticalText
             _UserText = value
         End Set
     End Property
-    Private Sub verticalText_Load(sender As Object, e As EventArgs) Handles MyBase.Load
-
-    End Sub
 
     Private Sub verticalText_Paint(sender As Object, e As Windows.Forms.PaintEventArgs) Handles Me.Paint
         Dim myPoint As New PointF(0, 0)
@@ -20,8 +17,8 @@ Public Class verticalText
         StrFormat.FormatFlags = StringFormatFlags.DirectionRightToLeft + StringFormatFlags.DirectionVertical
         Dim a As Integer = e.Graphics.MeasureString(UserText, Font).Width
         Dim b As Integer = e.Graphics.MeasureString(UserText, Font).Height
-        'Me.Width = b
-        'Me.Height = a
+        Me.Width = b
+        Me.Height = a
         e.Graphics.TranslateTransform(0, Me.Height / 2 + a / 2)
         e.Graphics.RotateTransform(180)
         e.Graphics.DrawString(UserText, Font, MysolidBrush, myPoint, StrFormat)
